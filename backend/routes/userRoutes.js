@@ -52,4 +52,32 @@ router.post('/register', verifyToken, async (req, res) => {
     }
 });
 
+// POST: Save the authenticated user's own profile (used during self-registration)
+router.post('/me', verifyToken, async (req, res) => {
+    const { full_name, role } = req.body;
+    const userId = req.user.uid;
+    const email = req.user.email;
+
+    if (!['admin', 'agent'].includes(role)) {
+        return res.status(400).json({ error: "Invalid role. Must be 'admin' or 'agent'." });
+    }
+
+    if (!full_name || full_name.trim() === '') {
+        return res.status(400).json({ error: "Full name is required." });
+    }
+
+    try {
+        await pool.query(
+            `INSERT INTO users (id, email, full_name, role) 
+             VALUES ($1, $2, $3, $4) 
+             ON CONFLICT (id) DO UPDATE SET full_name = $3`,
+            [userId, email, full_name.trim(), role]
+        );
+        res.json({ message: "Profile saved successfully" });
+    } catch (err) {
+        console.error("Profile save error:", err.message);
+        res.status(500).json({ error: "Failed to save profile" });
+    }
+});
+
 module.exports = router;

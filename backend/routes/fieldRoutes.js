@@ -65,13 +65,13 @@ router.post('/', verifyToken, async (req, res) => {
         const agent_id = req.user.uid;
         const email = req.user.email; 
 
-        // 3. THE FIX: Auto-Sync the user into PostgreSQL
-        // 'ON CONFLICT DO NOTHING' means if they already exist, it just skips this step quietly.
+        // 3. THE FIX: Auto-Sync the user into PostgreSQL only if they don't exist yet.
+        // Defaults to 'agent' (most restrictive) so proper roles come from registration.
         await pool.query(`
             INSERT INTO users (id, email, full_name, role) 
             VALUES ($1, $2, $3, $4) 
             ON CONFLICT (id) DO NOTHING
-        `, [agent_id, email, 'Admin User', 'admin']);
+        `, [agent_id, email, req.user.name || 'Unnamed User', 'agent']);
 
         // 4. Inject the field data
         const newField = await pool.query(

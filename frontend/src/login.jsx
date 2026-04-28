@@ -1,9 +1,10 @@
 // src/login.jsx
 import React, { useState } from 'react';
+import axios from 'axios';
 import { auth } from './firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { Sprout, Lock, Mail, Loader2, User, ShieldCheck } from 'lucide-react';
+import { Sprout, Lock, Mail, Loader2, User, ShieldCheck, ChevronDown } from 'lucide-react';
 
 const AuthPage = () => {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -11,7 +12,8 @@ const AuthPage = () => {
     fullName: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    role: 'agent'
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,7 +28,7 @@ const AuthPage = () => {
     setLoading(true);
     setError('');
 
-    const { email, password, confirmPassword, fullName } = formData;
+    const { email, password, confirmPassword, fullName, role } = formData;
 
     if (isRegistering && password !== confirmPassword) {
       setError("Passwords do not match!");
@@ -50,6 +52,15 @@ const AuthPage = () => {
       // 3. CAPTURE TOKEN IMMEDIATELY (The Redirect Fix)
       const token = await userCredential.user.getIdToken();
       localStorage.setItem('shamba_token', token);
+
+      // 4. On registration, save the user's profile (name + role) to the database
+      if (isRegistering) {
+        await axios.post(
+          'http://localhost:5000/api/users/me',
+          { full_name: fullName, role },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
       
       navigate('/dashboard');
     } catch (err) {
@@ -97,6 +108,25 @@ const AuthPage = () => {
             </div>
           )}
 
+          {isRegistering && (
+            <div className="input-group">
+              <label style={labelStyle}>Role</label>
+              <div style={{ position: 'relative' }}>
+                <ShieldCheck size={18} style={iconStyle} />
+                <select
+                  name="role"
+                  value={formData.role}
+                  onChange={handleInputChange}
+                  style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', paddingRight: '36px' }}
+                >
+                  <option value="agent">Field Agent</option>
+                  <option value="admin">Administrator</option>
+                </select>
+                <ChevronDown size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+              </div>
+            </div>
+          )}
+
           <div className="input-group">
             <label style={labelStyle}>Email Address</label>
             <div style={{ position: 'relative' }}>
@@ -137,7 +167,7 @@ const AuthPage = () => {
           <p style={{ fontSize: '14px', color: '#64748b' }}>
             {isRegistering ? 'Already have an account?' : "New to the platform?"}
             <button 
-              onClick={() => { setIsRegistering(!isRegistering); setError(''); }}
+              onClick={() => { setIsRegistering(!isRegistering); setError(''); setFormData({ fullName: '', email: '', password: '', confirmPassword: '', role: 'agent' }); }}
               style={{ background: 'none', border: 'none', color: isRegistering ? '#2563eb' : '#22c55e', fontWeight: '700', cursor: 'pointer', marginLeft: '6px' }}
             >
               {isRegistering ? 'Login instead' : 'Register here'}
